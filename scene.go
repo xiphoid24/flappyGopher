@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/veandco/go-sdl2/img"
@@ -10,9 +10,8 @@ import (
 )
 
 type scene struct {
-	time  int
-	bg    *sdl.Texture
-	birds []*sdl.Texture
+	bg   *sdl.Texture
+	bird *bird
 }
 
 func newScene(r *sdl.Renderer) (*scene, error) {
@@ -23,34 +22,28 @@ func newScene(r *sdl.Renderer) (*scene, error) {
 		bg, err = img.LoadTexture(r, "resources/imgs/background.png")
 	})
 	if err != nil {
+		return nil, fmt.Errorf("could not load background image: %v", err)
+	}
+
+	b, err := newBird(r)
+	if err != nil {
 		return nil, err
 	}
-
-	var birds []*sdl.Texture
-	for i := 1; i <= 4; i++ {
-		var bird *sdl.Texture
-		path := fmt.Sprintf("resources/imgs/bird_frame_%d.png", i)
-		sdl.Do(func() {
-			bird, err = img.LoadTexture(r, path)
-		})
-		if err != nil {
-			return nil, err
-		}
-		birds = append(birds, bird)
-	}
-
-	return &scene{bg: bg, birds: birds}, nil
+	return &scene{bg: bg, bird: b}, nil
 }
 
-func (s *scene) run(ctx context.Context, r *sdl.Renderer) <-chan error {
+func (s *scene) run(events chan sdl.Event, r *sdl.Renderer) <-chan error {
 	errc := make(chan error)
 	go func() {
 		defer close(errc)
-		for range time.Tick(10 * time.Millisecond) {
+		tick := time.Tick(10 * time.Millisecond)
+		for {
 			select {
-			case <-ctx.Done():
-				return
-			default:
+			case e := <-events:
+				if done := s.handleEvent(e); done {
+					return
+				}
+			case <-tick:
 				if err := s.paint(r); err != nil {
 					errc <- err
 				}
@@ -61,32 +54,45 @@ func (s *scene) run(ctx context.Context, r *sdl.Renderer) <-chan error {
 	return errc
 }
 
+func (s *scene) handleEvent(event sdl.Event) bool {
+	switch event.(type) {
+	case *sdl.QuitEvent:
+		return true
+	case *sdl.MouseButtonEvent:
+		s.bird.jump()
+	case *sdl.MouseMotionEvent, *sdl.WindowEvent, *sdl.CommonEvent:
+	default:
+		log.Printf("unknown event %T\n", event)
+	}
+	return false
+}
+
 func (s *scene) paint(r *sdl.Renderer) error {
 	var err error
-	s.time++
-	rect := &sdl.Rect{X: 10, Y: 300 - 43/2, W: 50, H: 43}
-	i := s.time / 10 % len(s.birds)
 
 	sdl.Do(func() {
 		r.Clear()
 		err = r.Copy(s.bg, nil, nil)
 	})
 	if err != nil {
+		return fmt.Errorf("could not copy background: %v", err)
+	}
+
+	if err = s.bird.paint(r); err != nil {
 		return err
 	}
 
 	sdl.Do(func() {
-		err = r.Copy(s.birds[i], nil, rect)
-	})
-	if err != nil {
-		return err
-	}
-	sdl.Do(func() {
 		r.Present()
 	})
+
 	return nil
 }
 
 func (s *scene) destroy() {
-	s.bg.Destroy()
+	sdl.Do(func() {
+		s.bg.Destroy()
+	})
+
+	s.bird.destroy()
 }
