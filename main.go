@@ -66,7 +66,7 @@ func run() error {
 		})
 	}()
 
-	if err = drawTitle(r); err != nil {
+	if err = drawTitle(r, "Flappy Gopher"); err != nil {
 		return fmt.Errorf("could not draw title: %v", err)
 	}
 
@@ -90,7 +90,7 @@ func run() error {
 	}
 }
 
-func drawTitle(r *sdl.Renderer) error {
+func drawTitle(r *sdl.Renderer, text string) error {
 	var f *ttf.Font
 	var s *sdl.Surface
 	var t *sdl.Texture
@@ -109,7 +109,7 @@ func drawTitle(r *sdl.Renderer) error {
 	}()
 
 	sdl.Do(func() {
-		s, err = f.RenderUTF8_Solid("Flappy Gopher", sdl.Color{
+		s, err = f.RenderUTF8_Solid(text, sdl.Color{
 			R: 255,
 			G: 100,
 			B: 0,
