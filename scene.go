@@ -72,7 +72,7 @@ func (s *scene) paint(r *sdl.Renderer) error {
 		err = r.Copy(s.bg, nil, nil)
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("could not copy background: %v", err)
 	}
 
 	sdl.Do(func() {
@@ -88,5 +88,7 @@ func (s *scene) paint(r *sdl.Renderer) error {
 }
 
 func (s *scene) destroy() {
-	s.bg.Destroy()
+	sdl.Do(func() {
+		s.bg.Destroy()
+	})
 }
