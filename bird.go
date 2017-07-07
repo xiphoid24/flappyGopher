@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -19,6 +20,7 @@ type bird struct {
 	time     int
 	textures []*sdl.Texture
 	r        *sdl.Renderer
+	chunk    *mix.Chunk
 
 	x, y  int32
 	w, h  int32
@@ -29,6 +31,11 @@ type bird struct {
 func newBird(r *sdl.Renderer) (*bird, error) {
 	var textures []*sdl.Texture
 	var err error
+
+	chunk, err := mix.LoadWAV("resources/audio/boing.wav")
+	if err != nil {
+		return nil, err
+	}
 
 	for i := 1; i <= 4; i++ {
 		var texture *sdl.Texture
@@ -44,6 +51,7 @@ func newBird(r *sdl.Renderer) (*bird, error) {
 
 	return &bird{
 		textures: textures,
+		chunk:    chunk,
 		x:        10,
 		y:        300,
 		w:        50,
@@ -101,6 +109,7 @@ func (b *bird) restart() {
 func (b *bird) destroy() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.chunk.Free()
 	for _, t := range b.textures {
 		sdl.Do(func() {
 			t.Destroy()
@@ -117,6 +126,9 @@ func (b *bird) isDead() bool {
 func (b *bird) jump() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if mix.Playing(-1) < 1 && !b.dead {
+		b.chunk.Play(-1, 1)
+	}
 
 	b.speed = -jumpSpeed
 }
@@ -134,7 +146,7 @@ func (b *bird) touch(p *pipe) {
 	if !p.inverted && p.h < b.y-b.h/2 { // pipe is too low
 		return
 	}
-	if p.inverted && (600-p.h) > b.y-b.h/2 { // inverted pipe is too high
+	if p.inverted && (600-p.h) > b.y+b.h/2 { // inverted pipe is too high
 		return
 	}
 	b.dead = true

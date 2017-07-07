@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -16,13 +17,22 @@ type scene struct {
 	bird  *bird
 	pipes *pipes
 	score *score
-
-	r *sdl.Renderer
+	music *mix.Music
+	r     *sdl.Renderer
 }
 
 func newScene(r *sdl.Renderer) (*scene, error) {
 	var bg *sdl.Texture
 	var err error
+
+	if err := mix.OpenAudio(mix.DEFAULT_FREQUENCY, mix.DEFAULT_FORMAT, 2, 100); err != nil {
+		return nil, err
+	}
+
+	music, err := mix.LoadMUS("resources/audio/music.mp3")
+	if err != nil {
+		return nil, fmt.Errorf("could not load music: %v", err)
+	}
 
 	sdl.Do(func() {
 		bg, err = img.LoadTexture(r, "resources/imgs/background.png")
@@ -51,11 +61,13 @@ func newScene(r *sdl.Renderer) (*scene, error) {
 		bird:  b,
 		pipes: ps,
 		score: sc,
+		music: music,
 		r:     r,
 	}, nil
 }
 
 func (s *scene) run(events chan sdl.Event) <-chan error {
+	s.music.Play(-1)
 	errc := make(chan error)
 	go func() {
 		defer close(errc)
@@ -91,6 +103,7 @@ func (s *scene) handleEvent(event sdl.Event) bool {
 		return true
 	case *sdl.MouseButtonEvent:
 		s.bird.jump()
+
 	case *sdl.MouseMotionEvent, *sdl.WindowEvent, *sdl.CommonEvent:
 	default:
 		log.Printf("unknown event %T\n", event)
@@ -113,6 +126,8 @@ func (s *scene) touch() {
 }
 
 func (s *scene) gameOver() error {
+	mix.PauseMusic()
+	mix.RewindMusic()
 	drawTitle(s.r, "Game Over")
 
 	s.score.mu.RLock()
@@ -122,7 +137,7 @@ func (s *scene) gameOver() error {
 	}
 	s.score.mu.RUnlock()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	s.restart()
 	return nil
 }
@@ -131,6 +146,7 @@ func (s *scene) restart() {
 	s.bird.restart()
 	s.pipes.restart()
 	s.score.restart()
+	mix.ResumeMusic()
 }
 
 func (s *scene) paint() error {
@@ -168,6 +184,8 @@ func (s *scene) paint() error {
 }
 
 func (s *scene) destroy() {
+	s.music.Free()
+
 	sdl.Do(func() {
 		s.bg.Destroy()
 	})
