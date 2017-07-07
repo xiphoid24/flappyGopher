@@ -4,8 +4,9 @@ Flappy Gopher is a clone of the famous Flappy Bird game developed in Go with
 bindings for SDL2.
 
 This is my version of the [just for func](https://www.youtube.com/watch?v=aYkxFbd6luY&list=PL64wiCrrxh4Jisi7OcCJIUpguV_f5jGnZ&index=9) flappy gopher. the original code can be found [here](https://github.com/campoy/flappy-gopher).
-I was having issues with go-sdl2 and goroutines on Ubuntu so I followed the example [here](https://github.com/veandco/go-sdl2/blob/master/examples/render_goroutines/render_goroutines.go). I changed my program to reflect that style and got it to work.
-Hope it helps.
+I was having issues with go-sdl2 and goroutines on Ubuntu so I followed the example [here](https://github.com/veandco/go-sdl2/blob/master/examples/render_goroutines/render_goroutines.go). I changed my program to reflect that style and got it to work. 
+
+In this branch I also started to experiment with some other features.
 
 ## Installation
 
