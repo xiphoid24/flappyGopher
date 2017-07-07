@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/veandco/go-sdl2/img"
@@ -13,6 +15,7 @@ type scene struct {
 	bg    *sdl.Texture
 	bird  *bird
 	pipes *pipes
+	score *score
 
 	r *sdl.Renderer
 }
@@ -38,10 +41,16 @@ func newScene(r *sdl.Renderer) (*scene, error) {
 		return nil, err
 	}
 
+	sc, err := newScore(r)
+	if err != nil {
+		return nil, err
+	}
+
 	return &scene{
 		bg:    bg,
 		bird:  b,
 		pipes: ps,
+		score: sc,
 		r:     r,
 	}, nil
 }
@@ -61,9 +70,9 @@ func (s *scene) run(events chan sdl.Event) <-chan error {
 				s.update()
 
 				if s.bird.isDead() {
-					drawTitle(s.r, "Game Over")
-					time.Sleep(1 * time.Second)
-					s.restart()
+					if err := s.gameOver(); err != nil {
+						errc <- err
+					}
 				}
 
 				if err := s.paint(); err != nil {
@@ -91,7 +100,7 @@ func (s *scene) handleEvent(event sdl.Event) bool {
 
 func (s *scene) update() {
 	s.bird.update()
-	s.pipes.update()
+	s.pipes.update(s.score)
 	s.touch()
 }
 
@@ -103,9 +112,25 @@ func (s *scene) touch() {
 	}
 }
 
+func (s *scene) gameOver() error {
+	drawTitle(s.r, "Game Over")
+
+	s.score.mu.RLock()
+	if err := ioutil.WriteFile("high.txt", []byte(strconv.Itoa(s.score.high)), 0666); err != nil {
+		s.score.mu.RUnlock()
+		return err
+	}
+	s.score.mu.RUnlock()
+
+	time.Sleep(1 * time.Second)
+	s.restart()
+	return nil
+}
+
 func (s *scene) restart() {
 	s.bird.restart()
 	s.pipes.restart()
+	s.score.restart()
 }
 
 func (s *scene) paint() error {
@@ -124,6 +149,14 @@ func (s *scene) paint() error {
 	}
 
 	if err = s.pipes.paint(); err != nil {
+		return err
+	}
+
+	if err = s.score.paintHigh(); err != nil {
+		return err
+	}
+
+	if err = s.score.paintCurrent(); err != nil {
 		return err
 	}
 

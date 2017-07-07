@@ -69,7 +69,7 @@ func (ps *pipes) restart() {
 	ps.pipes = nil
 }
 
-func (ps *pipes) update() {
+func (ps *pipes) update(sc *score) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -80,6 +80,8 @@ func (ps *pipes) update() {
 		p.mu.Unlock()
 		if p.x+p.w > 0 {
 			rem = append(rem, p)
+		} else {
+			sc.increase()
 		}
 	}
 	ps.pipes = rem

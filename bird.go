@@ -57,9 +57,16 @@ func (b *bird) update() {
 	defer b.mu.Unlock()
 	b.time++
 	b.y -= int32(b.speed)
-	if b.y < 0 {
+
+	if b.y < 0 || b.y > 600+b.h {
 		b.dead = true
 	}
+
+	/*if b.y > 0 {
+		b.y -= int32(b.speed)
+		b.speed += gravity
+	}*/
+
 	b.speed += gravity
 
 }
