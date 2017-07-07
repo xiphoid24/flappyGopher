@@ -53,9 +53,9 @@ func newBird(r *sdl.Renderer) (*bird, error) {
 		textures: textures,
 		chunk:    chunk,
 		x:        10,
-		y:        300,
-		w:        50,
-		h:        43,
+		y:        int32(windowH / 2),
+		w:        int32(float64(windowH) * .07),
+		h:        int32(float64(windowH) * .07),
 		r:        r,
 	}, nil
 }

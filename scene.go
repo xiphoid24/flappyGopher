@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,16 +13,20 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+var quitError = errors.New("quit")
+
 type scene struct {
-	bg    *sdl.Texture
-	bird  *bird
-	pipes *pipes
-	score *score
-	music *mix.Music
-	r     *sdl.Renderer
+	bg       *sdl.Texture
+	bird     *bird
+	pipes    *pipes
+	score    *score
+	music    *mix.Music
+	r        *sdl.Renderer
+	quitMenu *sdl.MessageBoxData
 }
 
 func newScene(r *sdl.Renderer) (*scene, error) {
+
 	var bg *sdl.Texture
 	var err error
 
@@ -57,12 +62,13 @@ func newScene(r *sdl.Renderer) (*scene, error) {
 	}
 
 	return &scene{
-		bg:    bg,
-		bird:  b,
-		pipes: ps,
-		score: sc,
-		music: music,
-		r:     r,
+		bg:       bg,
+		bird:     b,
+		pipes:    ps,
+		score:    sc,
+		music:    music,
+		r:        r,
+		quitMenu: newQuitMenu(),
 	}, nil
 }
 
@@ -79,16 +85,25 @@ func (s *scene) run(events chan sdl.Event) <-chan error {
 					return
 				}
 			case <-tick:
+				if s.bird.isDead() {
+					continue
+				}
+				fmt.Println("tick")
 				s.update()
 
 				if s.bird.isDead() {
-					if err := s.gameOver(); err != nil {
+					fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>dead")
+					err := s.gameOver()
+					if err == quitError {
+						return
+					}
+					if err != nil {
 						errc <- err
 					}
-				}
-
-				if err := s.paint(); err != nil {
-					errc <- err
+				} else {
+					if err := s.paint(); err != nil {
+						errc <- err
+					}
 				}
 			}
 		}
@@ -103,6 +118,10 @@ func (s *scene) handleEvent(event sdl.Event) bool {
 		return true
 	case *sdl.MouseButtonEvent:
 		s.bird.jump()
+		/*if s.bird.isDead() {
+			s.restart()
+		} else {
+		}*/
 
 	case *sdl.MouseMotionEvent, *sdl.WindowEvent, *sdl.CommonEvent:
 	default:
@@ -128,8 +147,7 @@ func (s *scene) touch() {
 func (s *scene) gameOver() error {
 	mix.PauseMusic()
 	mix.RewindMusic()
-	drawTitle(s.r, "Game Over")
-
+	// drawTitle(s.r, "Game Over")
 	s.score.mu.RLock()
 	if err := ioutil.WriteFile("high.txt", []byte(strconv.Itoa(s.score.high)), 0666); err != nil {
 		s.score.mu.RUnlock()
@@ -137,7 +155,16 @@ func (s *scene) gameOver() error {
 	}
 	s.score.mu.RUnlock()
 
-	time.Sleep(2 * time.Second)
+	err, button := sdl.ShowMessageBox(s.quitMenu)
+	if err != nil {
+		return err
+	}
+	fmt.Printf(">>>>>>>>button %d\n", button)
+	if button == 0 {
+		return quitError
+	}
+
+	// time.Sleep(2 * time.Second)
 	s.restart()
 	return nil
 }
@@ -192,4 +219,44 @@ func (s *scene) destroy() {
 
 	s.bird.destroy()
 	s.pipes.destroy()
+}
+
+func newQuitMenu() *sdl.MessageBoxData {
+	buttons := []sdl.MessageBoxButtonData{
+		{
+			Flags:    sdl.MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT,
+			ButtonId: 0,
+			Text:     "No",
+		},
+		{
+			Flags:    sdl.MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
+			ButtonId: 1,
+			Text:     "Yes",
+		},
+	}
+	color := &sdl.MessageBoxColorScheme{
+		Colors: [5]sdl.MessageBoxColor{
+			/* .colors (.r, .g, .b) */
+			/* [SDL_MESSAGEBOX_COLOR_BACKGROUND] */
+			{R: 255, G: 0, B: 0},
+			/* [SDL_MESSAGEBOX_COLOR_TEXT] */
+			{R: 0, G: 255, B: 0},
+			/* [SDL_MESSAGEBOX_COLOR_BUTTON_BORDER] */
+			{R: 255, G: 255, B: 0},
+			/* [SDL_MESSAGEBOX_COLOR_BUTTON_BACKGROUND] */
+			{R: 0, G: 0, B: 255},
+			/* [SDL_MESSAGEBOX_COLOR_BUTTON_SELECTED] */
+			{R: 255, G: 0, B: 255},
+		},
+	}
+
+	return &sdl.MessageBoxData{
+		Flags:       sdl.MESSAGEBOX_INFORMATION,
+		Window:      nil,
+		Title:       "Game Over",
+		Message:     "Game Over! Would you like to try again?",
+		NumButtons:  2,
+		Buttons:     buttons,
+		ColorScheme: color,
+	}
 }

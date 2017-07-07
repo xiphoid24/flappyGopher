@@ -9,6 +9,8 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+var windowW, windowH int
+
 func main() {
 	sdl.Main(func() {
 		if err := run(); err != nil {
@@ -49,7 +51,7 @@ func run() error {
 	}()
 
 	sdl.Do(func() {
-		w, r, err = sdl.CreateWindowAndRenderer(800, 600, sdl.WINDOW_SHOWN)
+		w, r, err = sdl.CreateWindowAndRenderer(800, 600, sdl.WINDOW_SHOWN|sdl.WINDOW_FULLSCREEN_DESKTOP)
 	})
 	if err != nil {
 		return fmt.Errorf("could not create window: %v", err)
@@ -65,6 +67,8 @@ func run() error {
 			r.Destroy()
 		})
 	}()
+
+	windowW, windowH = w.GetSize()
 
 	if err = drawTitle(r, "Flappy Gopher"); err != nil {
 		return fmt.Errorf("could not draw title: %v", err)
