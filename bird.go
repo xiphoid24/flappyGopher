@@ -109,8 +109,6 @@ func (b *bird) jump() {
 func (b *bird) touch(p *pipe) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	p.mu.RLock()
-	p.mu.RUnlock()
 
 	if p.x > b.x+b.w { // too far left
 		return

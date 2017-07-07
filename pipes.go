@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
@@ -28,10 +30,21 @@ func newPipes(r *sdl.Renderer) (*pipes, error) {
 		return nil, fmt.Errorf("could not load pipe image: %v", err)
 	}
 
-	return &pipes{
+	ps := &pipes{
 		texture: texture,
 		speed:   2,
-	}, nil
+	}
+
+	go func() {
+		for {
+			ps.mu.Lock()
+			ps.pipes = append(ps.pipes, newPipe())
+			ps.mu.Unlock()
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	return ps, nil
 }
 
 func (ps *pipes) paint(r *sdl.Renderer) error {
@@ -48,6 +61,14 @@ func (ps *pipes) paint(r *sdl.Renderer) error {
 	return nil
 }
 
+func (ps *pipes) touch(b *bird) {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+	for _, p := range ps.pipes {
+		p.touch(b)
+	}
+}
+
 func (ps *pipes) restart() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -57,11 +78,17 @@ func (ps *pipes) restart() {
 func (ps *pipes) update() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
+
+	var rem []*pipe
 	for _, p := range ps.pipes {
 		p.mu.Lock()
 		p.x -= ps.speed
 		p.mu.Unlock()
+		if p.x+p.w > 0 {
+			rem = append(rem, p)
+		}
 	}
+	ps.pipes = rem
 }
 
 func (ps *pipes) destroy() {
@@ -82,15 +109,21 @@ type pipe struct {
 	inverted bool
 }
 
-func newPipe(r *sdl.Renderer) (*pipe, error) {
+func newPipe() *pipe {
 
 	return &pipe{
-		x:        400,
-		h:        300,
+		x:        800,
+		h:        100 + int32(rand.Intn(300)),
 		w:        50,
-		inverted: true,
-	}, nil
+		inverted: rand.Float32() > 0.5,
+	}
 
+}
+
+func (p *pipe) touch(b *bird) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	b.touch(p)
 }
 
 func (p *pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
