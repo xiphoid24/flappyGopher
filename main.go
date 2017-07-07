@@ -79,7 +79,7 @@ func run() error {
 	defer s.destroy()
 
 	events := make(chan sdl.Event)
-	errc := s.run(events, r)
+	errc := s.run(events)
 
 	for {
 		select {
@@ -117,7 +117,7 @@ func drawTitle(r *sdl.Renderer, text string) error {
 		})
 	})
 	if err != nil {
-		return fmt.Errorf("could not render solid: %v", err)
+		return fmt.Errorf("could not render surface: %v", err)
 	}
 	defer func() {
 		sdl.Do(func() {

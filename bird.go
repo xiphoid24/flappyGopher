@@ -18,6 +18,7 @@ type bird struct {
 
 	time     int
 	textures []*sdl.Texture
+	r        *sdl.Renderer
 
 	x, y  int32
 	w, h  int32
@@ -41,7 +42,14 @@ func newBird(r *sdl.Renderer) (*bird, error) {
 		textures = append(textures, texture)
 	}
 
-	return &bird{textures: textures, x: 10, y: 300, w: 50, h: 43}, nil
+	return &bird{
+		textures: textures,
+		x:        10,
+		y:        300,
+		w:        50,
+		h:        43,
+		r:        r,
+	}, nil
 }
 
 func (b *bird) update() {
@@ -56,7 +64,7 @@ func (b *bird) update() {
 
 }
 
-func (b *bird) paint(r *sdl.Renderer) error {
+func (b *bird) paint() error {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	var err error
@@ -65,7 +73,7 @@ func (b *bird) paint(r *sdl.Renderer) error {
 	i := b.time / 10 % len(b.textures)
 
 	sdl.Do(func() {
-		err = r.Copy(b.textures[i], nil, rect)
+		err = b.r.Copy(b.textures[i], nil, rect)
 	})
 	if err != nil {
 		return fmt.Errorf("could not copy bird: %v", err)

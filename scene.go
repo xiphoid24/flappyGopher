@@ -13,6 +13,8 @@ type scene struct {
 	bg    *sdl.Texture
 	bird  *bird
 	pipes *pipes
+
+	r *sdl.Renderer
 }
 
 func newScene(r *sdl.Renderer) (*scene, error) {
@@ -36,10 +38,15 @@ func newScene(r *sdl.Renderer) (*scene, error) {
 		return nil, err
 	}
 
-	return &scene{bg: bg, bird: b, pipes: ps}, nil
+	return &scene{
+		bg:    bg,
+		bird:  b,
+		pipes: ps,
+		r:     r,
+	}, nil
 }
 
-func (s *scene) run(events chan sdl.Event, r *sdl.Renderer) <-chan error {
+func (s *scene) run(events chan sdl.Event) <-chan error {
 	errc := make(chan error)
 	go func() {
 		defer close(errc)
@@ -54,12 +61,12 @@ func (s *scene) run(events chan sdl.Event, r *sdl.Renderer) <-chan error {
 				s.update()
 
 				if s.bird.isDead() {
-					drawTitle(r, "Game Over")
+					drawTitle(s.r, "Game Over")
 					time.Sleep(1 * time.Second)
 					s.restart()
 				}
 
-				if err := s.paint(r); err != nil {
+				if err := s.paint(); err != nil {
 					errc <- err
 				}
 			}
@@ -85,7 +92,15 @@ func (s *scene) handleEvent(event sdl.Event) bool {
 func (s *scene) update() {
 	s.bird.update()
 	s.pipes.update()
-	s.pipes.touch(s.bird)
+	s.touch()
+}
+
+func (s *scene) touch() {
+	s.pipes.mu.RLock()
+	defer s.pipes.mu.RUnlock()
+	for _, p := range s.pipes.pipes {
+		s.bird.touch(p)
+	}
 }
 
 func (s *scene) restart() {
@@ -93,27 +108,27 @@ func (s *scene) restart() {
 	s.pipes.restart()
 }
 
-func (s *scene) paint(r *sdl.Renderer) error {
+func (s *scene) paint() error {
 	var err error
 
 	sdl.Do(func() {
-		r.Clear()
-		err = r.Copy(s.bg, nil, nil)
+		s.r.Clear()
+		err = s.r.Copy(s.bg, nil, nil)
 	})
 	if err != nil {
 		return fmt.Errorf("could not copy background: %v", err)
 	}
 
-	if err = s.bird.paint(r); err != nil {
+	if err = s.bird.paint(); err != nil {
 		return err
 	}
 
-	if err = s.pipes.paint(r); err != nil {
+	if err = s.pipes.paint(); err != nil {
 		return err
 	}
 
 	sdl.Do(func() {
-		r.Present()
+		s.r.Present()
 	})
 
 	return nil

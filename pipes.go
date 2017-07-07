@@ -14,6 +14,7 @@ type pipes struct {
 	mu sync.RWMutex
 
 	texture *sdl.Texture
+	r       *sdl.Renderer
 	speed   int32
 
 	pipes []*pipe
@@ -33,6 +34,7 @@ func newPipes(r *sdl.Renderer) (*pipes, error) {
 	ps := &pipes{
 		texture: texture,
 		speed:   2,
+		r:       r,
 	}
 
 	go func() {
@@ -47,26 +49,18 @@ func newPipes(r *sdl.Renderer) (*pipes, error) {
 	return ps, nil
 }
 
-func (ps *pipes) paint(r *sdl.Renderer) error {
+func (ps *pipes) paint() error {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
 	var err error
 
 	for _, p := range ps.pipes {
-		if err = p.paint(r, ps.texture); err != nil {
+		if err = p.paint(ps.r, ps.texture); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (ps *pipes) touch(b *bird) {
-	ps.mu.RLock()
-	defer ps.mu.RUnlock()
-	for _, p := range ps.pipes {
-		p.touch(b)
-	}
 }
 
 func (ps *pipes) restart() {
@@ -118,12 +112,6 @@ func newPipe() *pipe {
 		inverted: rand.Float32() > 0.5,
 	}
 
-}
-
-func (p *pipe) touch(b *bird) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	b.touch(p)
 }
 
 func (p *pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
